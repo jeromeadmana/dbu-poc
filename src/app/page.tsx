@@ -61,11 +61,21 @@ export default async function Home() {
               {user.rank && <> · <span className="font-mono">{user.rank}</span></>}
             </p>
           </div>
-          <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
-            <button className="text-sm underline text-zinc-600 dark:text-zinc-400">
-              Sign out
-            </button>
-          </form>
+          <div className="flex items-center gap-3">
+            {user.role === "ADMIN" && (
+              <Link
+                href="/admin"
+                className="text-sm underline text-zinc-600 dark:text-zinc-400"
+              >
+                Admin
+              </Link>
+            )}
+            <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
+              <button className="text-sm underline text-zinc-600 dark:text-zinc-400">
+                Sign out
+              </button>
+            </form>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 mb-8">
