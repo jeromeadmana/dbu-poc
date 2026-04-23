@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { format } from "date-fns";
+import { startMembershipAction } from "./actions";
 
 export default async function BarberDashboard() {
   const session = await auth();
@@ -12,7 +13,15 @@ export default async function BarberDashboard() {
   const profile = await db.barberProfile.findUnique({
     where: { userId: session.user.id },
     include: {
-      user: { select: { name: true, email: true, rank: true } },
+      user: {
+        select: {
+          name: true,
+          email: true,
+          rank: true,
+          stripeSubscriptionId: true,
+          isSubscriptionWaived: true,
+        },
+      },
       services: { where: { isActive: true }, orderBy: { priceCents: "asc" } },
     },
   });
@@ -82,6 +91,44 @@ export default async function BarberDashboard() {
             {bookingLink}
           </Link>
         </div>
+
+        <section className="mb-6">
+          <h2 className="text-sm uppercase text-zinc-500 mb-3">Membership</h2>
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
+            {profile.user.isSubscriptionWaived ? (
+              <div>
+                <div className="text-emerald-700 dark:text-emerald-400 font-medium mb-1">
+                  Waived — free app unlocked
+                </div>
+                <p className="text-xs text-zinc-500">
+                  You have 3+ active referrals. Subscription billing is waived while that holds.
+                </p>
+              </div>
+            ) : profile.user.stripeSubscriptionId ? (
+              <div>
+                <div className="text-emerald-700 dark:text-emerald-400 font-medium mb-1">
+                  Active
+                </div>
+                <p className="text-xs text-zinc-500">
+                  Each renewal distributes commission up your sponsor chain.
+                </p>
+              </div>
+            ) : (
+              <form action={startMembershipAction}>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
+                  Subscribe for $29/month. Each payment distributes commission up your sponsor
+                  chain (and is waived once you have 3 active referrals).
+                </p>
+                <button
+                  type="submit"
+                  className="text-sm px-3 py-1.5 rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:opacity-90 transition"
+                >
+                  Start membership
+                </button>
+              </form>
+            )}
+          </div>
+        </section>
 
         <section className="mb-8">
           <h2 className="text-sm uppercase text-zinc-500 mb-3">Services</h2>

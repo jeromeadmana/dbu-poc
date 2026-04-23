@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { DEFAULT_AVAILABILITY, makeBarberSlug } from "@/lib/booking";
+import { createMembershipCheckoutSession } from "@/lib/stripe-membership";
 
 export async function becomeBarberAction() {
   const session = await auth();
@@ -56,4 +57,22 @@ export async function becomeBarberAction() {
   revalidatePath("/");
   revalidatePath("/barber");
   redirect("/barber");
+}
+
+export async function startMembershipAction() {
+  const session = await auth();
+  if (!session?.user) redirect("/signin?callbackUrl=/barber");
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, email: true, stripeSubscriptionId: true },
+  });
+  if (!user) redirect("/signin");
+  if (user.stripeSubscriptionId) redirect("/barber?membership=active");
+
+  const checkoutUrl = await createMembershipCheckoutSession({
+    userId: user.id,
+    userEmail: user.email,
+  });
+  redirect(checkoutUrl);
 }
