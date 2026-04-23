@@ -1,0 +1,55 @@
+{
+  "name": "dbu-poc",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "eslint",
+    "postinstall": "prisma generate",
+    "db:diff:init": "dotenv -e .env.local -- prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script",
+    "db:diff:incremental": "dotenv -e .env.local -- prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --script",
+    "db:apply": "dotenv -e .env.local -- prisma db execute --schema prisma/schema.prisma --file",
+    "db:studio": "dotenv -e .env.local -- prisma studio",
+    "db:seed": "dotenv -e .env.local -- tsx prisma/seed.ts",
+    "verify:phase1": "dotenv -e .env.local -- tsx scripts/verify-phase1.ts",
+    "verify:phase2": "dotenv -e .env.local -- tsx scripts/verify-phase2.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.11.2",
+    "@hookform/resolvers": "^5.2.2",
+    "@prisma/client": "^6.0.0",
+    "bcryptjs": "^3.0.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^1.8.0",
+    "next": "^15.1.0",
+    "next-auth": "^5.0.0-beta.31",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.73.1",
+    "stripe": "^22.0.2",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "^15.1.0",
+    "prisma": "^6.0.0",
+    "tailwindcss": "^4",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  }
+}
