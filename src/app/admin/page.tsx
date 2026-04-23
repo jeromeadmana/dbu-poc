@@ -1,13 +1,19 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { format } from "date-fns";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import {
+  clearFlashAction,
   recomputeWaiverAction,
   releaseCommissionsAction,
+  resetUserPasswordAction,
   updateUserAction,
 } from "./actions";
+
+type Flash =
+  | { kind: "password-reset"; email: string; name: string; tempPw: string };
 
 const RANKS = ["MEMBER", "PRO", "ELITE", "COACH", "DYNASTY"] as const;
 const ROLES = ["CLIENT", "BARBER", "ADMIN"] as const;
@@ -22,6 +28,16 @@ export default async function AdminPage({
     redirect("/signin?callbackUrl=/admin");
   }
   const { ok, error } = await searchParams;
+
+  let flash: Flash | null = null;
+  const flashCookie = (await cookies()).get("dbu_admin_flash");
+  if (flashCookie) {
+    try {
+      flash = JSON.parse(flashCookie.value) as Flash;
+    } catch {
+      flash = null;
+    }
+  }
 
   const now = new Date();
 
@@ -88,6 +104,39 @@ export default async function AdminPage({
             {error}
           </div>
         )}
+
+        {flash?.kind === "password-reset" && (
+          <div className="mb-4 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-amber-900 dark:text-amber-200 mb-1">
+                  Temporary password generated
+                </div>
+                <div className="text-xs text-amber-700 dark:text-amber-300 mb-2">
+                  Share with {flash.name} ({flash.email}) and ask them to change it after signing in. This banner
+                  auto-expires in 5 min or when dismissed.
+                </div>
+                <code className="inline-block text-sm font-mono bg-white dark:bg-zinc-950 border border-amber-300 dark:border-amber-800 px-2 py-1 rounded select-all">
+                  {flash.tempPw}
+                </code>
+              </div>
+              <form action={clearFlashAction}>
+                <button
+                  type="submit"
+                  className="text-xs underline text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100"
+                >
+                  Dismiss
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        <div className="mb-4 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400">
+          Note: role / rank changes here take effect in the DB immediately, but the affected
+          user&apos;s JWT still carries the <em>old</em> role until they sign out and back in.
+          Ask them to re-login after promoting them.
+        </div>
 
         {/* Stats */}
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
@@ -200,17 +249,30 @@ export default async function AdminPage({
                           Save
                         </button>
                       </form>
-                      {u.role === "BARBER" && u._count.sponsees > 0 && (
-                        <form action={recomputeWaiverAction} className="mt-1">
-                          <input type="hidden" name="userId" value={u.id} />
-                          <button
-                            type="submit"
-                            className="text-xs underline text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-                          >
-                            Recompute waiver
-                          </button>
-                        </form>
-                      )}
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                        {u.role === "BARBER" && u._count.sponsees > 0 && (
+                          <form action={recomputeWaiverAction}>
+                            <input type="hidden" name="userId" value={u.id} />
+                            <button
+                              type="submit"
+                              className="text-xs underline text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                            >
+                              Recompute waiver
+                            </button>
+                          </form>
+                        )}
+                        {u.id !== session.user.id && (
+                          <form action={resetUserPasswordAction}>
+                            <input type="hidden" name="userId" value={u.id} />
+                            <button
+                              type="submit"
+                              className="text-xs underline text-zinc-500 hover:text-red-700 dark:hover:text-red-300"
+                            >
+                              Reset password
+                            </button>
+                          </form>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

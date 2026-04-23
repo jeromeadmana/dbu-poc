@@ -1,13 +1,26 @@
 "use server";
 
 import { z } from "zod";
+import bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { releaseEligibleCommissions } from "@/lib/commission/release";
 import { recomputeWaiverStatus } from "@/lib/commission/waiver";
 import type { Rank, Role } from "@prisma/client";
+
+const FLASH_COOKIE = "dbu_admin_flash";
+
+function generateTempPassword(): string {
+  const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = randomBytes(12);
+  let out = "";
+  for (let i = 0; i < 12; i++) out += alphabet[bytes[i] % alphabet.length];
+  return out;
+}
 
 async function requireAdmin() {
   const session = await auth();
@@ -85,6 +98,63 @@ export async function releaseCommissionsAction() {
   const { released } = await releaseEligibleCommissions({ adminId: admin.id });
   revalidatePath("/admin");
   redirect(`/admin?ok=released-${released}`);
+}
+
+export async function resetUserPasswordAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const userId = formData.get("userId")?.toString();
+  if (!userId) redirect("/admin?error=invalid");
+
+  const user = await db.user.findUnique({
+    where: { id: userId as string },
+    select: { id: true, email: true, name: true },
+  });
+  if (!user) redirect("/admin?error=not-found");
+
+  const tempPw = generateTempPassword();
+  const passwordHash = await bcrypt.hash(tempPw, 10);
+
+  await db.user.update({
+    where: { id: user.id },
+    data: { passwordHash },
+  });
+
+  await db.adminActionLog.create({
+    data: {
+      adminId: admin.id,
+      action: "user.password.reset",
+      targetType: "user",
+      targetId: user.id,
+      payload: { email: user.email },
+    },
+  });
+
+  const store = await cookies();
+  store.set({
+    name: FLASH_COOKIE,
+    value: JSON.stringify({
+      kind: "password-reset",
+      email: user.email,
+      name: user.name,
+      tempPw,
+    }),
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/admin",
+    maxAge: 60 * 5,
+  });
+
+  revalidatePath("/admin");
+  redirect("/admin");
+}
+
+export async function clearFlashAction() {
+  await requireAdmin();
+  const store = await cookies();
+  store.delete(FLASH_COOKIE);
+  revalidatePath("/admin");
+  redirect("/admin");
 }
 
 export async function recomputeWaiverAction(formData: FormData) {

@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { format } from "date-fns";
 import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { CopyLinkButton } from "@/components/copy-link-button";
-import { becomeBarberAction } from "./barber/actions";
+import { becomeBarberAction, cancelBookingAction } from "./barber/actions";
 
 export default async function Home() {
   const session = await auth();
@@ -34,14 +35,29 @@ export default async function Home() {
     );
   }
 
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    include: {
-      sponsor: { select: { name: true, referralCode: true } },
-      barberProfile: { select: { slug: true } },
-      _count: { select: { sponsees: true } },
-    },
-  });
+  const [user, myBookings] = await Promise.all([
+    db.user.findUnique({
+      where: { id: session.user.id },
+      include: {
+        sponsor: { select: { name: true, referralCode: true } },
+        barberProfile: { select: { slug: true } },
+        _count: { select: { sponsees: true } },
+      },
+    }),
+    db.booking.findMany({
+      where: {
+        clientId: session.user.id,
+        status: { in: ["PENDING", "CONFIRMED"] },
+        startAt: { gte: new Date() },
+      },
+      include: {
+        barber: { select: { name: true } },
+        service: { select: { name: true, durationMin: true } },
+      },
+      orderBy: { startAt: "asc" },
+      take: 10,
+    }),
+  ]);
 
   if (!user) {
     return null;
@@ -137,6 +153,49 @@ export default async function Home() {
             </form>
           )}
         </div>
+
+        {myBookings.length > 0 && (
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
+            <div className="text-xs uppercase text-zinc-500 mb-3">
+              Your upcoming bookings ({myBookings.length})
+            </div>
+            <ul className="space-y-1.5">
+              {myBookings.map((b) => (
+                <li
+                  key={b.id}
+                  className="flex items-center justify-between py-2 px-3 rounded-md bg-zinc-50 dark:bg-zinc-900 gap-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium truncate">
+                      {b.service.name} with {b.barber.name}
+                    </div>
+                    <div className="text-xs text-zinc-500">
+                      {format(b.startAt, "EEE, MMM d · h:mm a")} · {b.service.durationMin} min
+                    </div>
+                  </div>
+                  <span
+                    className={`text-xs font-mono ${
+                      b.status === "CONFIRMED"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-amber-600 dark:text-amber-400"
+                    }`}
+                  >
+                    {b.status}
+                  </span>
+                  <form action={cancelBookingAction}>
+                    <input type="hidden" name="bookingId" value={b.id} />
+                    <button
+                      type="submit"
+                      className="text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-red-50 dark:hover:bg-red-950/50 hover:border-red-300 dark:hover:border-red-900 hover:text-red-700 dark:hover:text-red-300 transition"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </main>
   );

@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { CapacityMeter } from "@/components/capacity-meter";
 import { format } from "date-fns";
-import { startMembershipAction } from "./actions";
+import { cancelBookingAction, startMembershipAction } from "./actions";
 import { getBarberStats } from "@/lib/barber-stats";
 
 export default async function BarberDashboard() {
@@ -235,18 +235,31 @@ function BookingRow({
     booking.status === "CONFIRMED"
       ? "text-emerald-600 dark:text-emerald-400"
       : "text-amber-600 dark:text-amber-400";
+  const canCancel = ["PENDING", "CONFIRMED"].includes(booking.status) && booking.startAt.getTime() > Date.now();
   return (
-    <li className="flex items-center justify-between py-2 px-3 rounded-md border border-zinc-200 dark:border-zinc-800">
-      <div>
-        <div className="font-medium">{booking.client.name}</div>
+    <li className="flex items-center justify-between py-2 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 gap-3">
+      <div className="min-w-0 flex-1">
+        <div className="font-medium truncate">{booking.client.name}</div>
         <div className="text-xs text-zinc-500">
           {booking.service.name} · {booking.service.durationMin} min
         </div>
       </div>
-      <div className="text-right">
+      <div className="text-right shrink-0">
         <div className="text-sm">{format(booking.startAt, "MMM d, h:mm a")}</div>
         <div className={`text-xs ${statusColor}`}>{booking.status}</div>
       </div>
+      {canCancel && (
+        <form action={cancelBookingAction}>
+          <input type="hidden" name="bookingId" value={booking.id} />
+          <button
+            type="submit"
+            className="text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-red-50 dark:hover:bg-red-950/50 hover:border-red-300 dark:hover:border-red-900 hover:text-red-700 dark:hover:text-red-300 transition"
+            title="Cancel (refunds on CONFIRMED)"
+          >
+            Cancel
+          </button>
+        </form>
+      )}
     </li>
   );
 }
