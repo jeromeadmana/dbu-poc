@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
+import { auth, unstable_update } from "@/auth";
 import { db } from "@/lib/db";
 import { DEFAULT_AVAILABILITY, makeBarberSlug } from "@/lib/booking";
 import { createMembershipCheckoutSession } from "@/lib/stripe-membership";
@@ -30,12 +30,14 @@ export async function becomeBarberAction() {
     slug = `${baseSlug}-${i}`;
   }
 
+  const newRank = user.rank ?? "MEMBER";
+
   await db.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: user.id },
       data: {
         role: "BARBER",
-        rank: user.rank ?? "MEMBER",
+        rank: newRank,
       },
     });
     await tx.barberProfile.create({
@@ -53,6 +55,10 @@ export async function becomeBarberAction() {
       },
     });
   });
+
+  // Refresh the JWT so middleware sees the new role on the very next request —
+  // otherwise the stale `role=CLIENT` claim bounces the user at /barber.
+  await unstable_update({ user: { role: "BARBER", rank: newRank } });
 
   revalidatePath("/");
   revalidatePath("/barber");
