@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 import type { Prisma } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 import { db } from "./db";
 import { distributeCommissions } from "./commission/distribute";
 
@@ -120,6 +121,9 @@ async function handleBookingCheckout(session: Stripe.Checkout.Session): Promise<
       });
     }
   });
+
+  // Invalidate any cached /barber render so the booking appears immediately.
+  revalidatePath("/barber");
 
   // Bookings don't distribute commissions (clients usually have no upline).
   // Only membership + coaching payments trigger commission flow.
