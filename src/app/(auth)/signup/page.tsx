@@ -4,9 +4,9 @@ import { signupAction } from "../actions";
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ref?: string; error?: string }>;
+  searchParams: Promise<{ ref?: string; error?: string; callbackUrl?: string }>;
 }) {
-  const { ref, error } = await searchParams;
+  const { ref, error, callbackUrl } = await searchParams;
 
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-lg shadow p-6 border border-zinc-200 dark:border-zinc-800">
@@ -49,6 +49,7 @@ export default async function SignupPage({
           <p className="text-xs text-zinc-500 mt-1">Minimum 8 characters</p>
         </div>
         {ref && <input type="hidden" name="ref" value={ref} />}
+        {callbackUrl && <input type="hidden" name="callbackUrl" value={callbackUrl} />}
         <button
           type="submit"
           className="w-full py-2 rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium hover:opacity-90 transition"
@@ -58,7 +59,13 @@ export default async function SignupPage({
       </form>
 
       <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-4 text-center">
-        Already have an account? <Link href="/signin" className="underline">Sign in</Link>
+        Already have an account?{" "}
+        <Link
+          href={`/signin${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
+          className="underline"
+        >
+          Sign in
+        </Link>
       </p>
     </div>
   );

@@ -6,7 +6,7 @@ export default async function SigninPage({
 }: {
   searchParams: Promise<{ error?: string; callbackUrl?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, callbackUrl } = await searchParams;
 
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-lg shadow p-6 border border-zinc-200 dark:border-zinc-800">
@@ -34,6 +34,7 @@ export default async function SigninPage({
             className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950"
           />
         </div>
+        {callbackUrl && <input type="hidden" name="callbackUrl" value={callbackUrl} />}
         <button
           type="submit"
           className="w-full py-2 rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium hover:opacity-90 transition"
@@ -43,7 +44,13 @@ export default async function SigninPage({
       </form>
 
       <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-4 text-center">
-        Don&apos;t have an account? <Link href="/signup" className="underline">Sign up</Link>
+        Don&apos;t have an account?{" "}
+        <Link
+          href={`/signup${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
+          className="underline"
+        >
+          Sign up
+        </Link>
       </p>
     </div>
   );

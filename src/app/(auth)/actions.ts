@@ -13,19 +13,34 @@ const signupSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   name: z.string().min(1, "Name is required"),
   ref: z.string().optional(),
+  callbackUrl: z.string().optional(),
 });
 
+function sanitizeCallback(raw: string | null | undefined): string {
+  const value = raw ?? "";
+  // Only allow relative paths starting with "/" to prevent open-redirect abuse.
+  if (!value.startsWith("/") || value.startsWith("//")) return "/";
+  return value;
+}
+
 export async function signupAction(formData: FormData) {
+  const callbackUrl = sanitizeCallback(formData.get("callbackUrl")?.toString());
+  const refValue = formData.get("ref")?.toString();
+
   const parsed = signupSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
     name: formData.get("name"),
-    ref: formData.get("ref") || undefined,
+    ref: refValue || undefined,
+    callbackUrl,
   });
 
   if (!parsed.success) {
     const msg = parsed.error.issues[0]?.message ?? "Invalid input";
-    redirect(`/signup?error=${encodeURIComponent(msg)}`);
+    const qs = new URLSearchParams({ error: msg });
+    if (refValue) qs.set("ref", refValue);
+    if (callbackUrl !== "/") qs.set("callbackUrl", callbackUrl);
+    redirect(`/signup?${qs.toString()}`);
   }
 
   const { email, password, name, ref } = parsed.data;
@@ -33,7 +48,10 @@ export async function signupAction(formData: FormData) {
 
   const existing = await db.user.findUnique({ where: { email: normalizedEmail } });
   if (existing) {
-    redirect(`/signup?error=${encodeURIComponent("Email already in use")}`);
+    const qs = new URLSearchParams({ error: "Email already in use" });
+    if (refValue) qs.set("ref", refValue);
+    if (callbackUrl !== "/") qs.set("callbackUrl", callbackUrl);
+    redirect(`/signup?${qs.toString()}`);
   }
 
   let sponsorId: string | null = null;
@@ -63,7 +81,7 @@ export async function signupAction(formData: FormData) {
   await signIn("credentials", {
     email: normalizedEmail,
     password,
-    redirectTo: "/",
+    redirectTo: callbackUrl,
   });
 }
 
@@ -73,24 +91,30 @@ const signinSchema = z.object({
 });
 
 export async function signinAction(formData: FormData) {
+  const callbackUrl = sanitizeCallback(formData.get("callbackUrl")?.toString());
+
   const parsed = signinSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
 
   if (!parsed.success) {
-    redirect(`/signin?error=${encodeURIComponent("Invalid input")}`);
+    const qs = new URLSearchParams({ error: "Invalid input" });
+    if (callbackUrl !== "/") qs.set("callbackUrl", callbackUrl);
+    redirect(`/signin?${qs.toString()}`);
   }
 
   try {
     await signIn("credentials", {
       email: parsed.data.email.toLowerCase(),
       password: parsed.data.password,
-      redirectTo: "/",
+      redirectTo: callbackUrl,
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      redirect(`/signin?error=${encodeURIComponent("Invalid email or password")}`);
+      const qs = new URLSearchParams({ error: "Invalid email or password" });
+      if (callbackUrl !== "/") qs.set("callbackUrl", callbackUrl);
+      redirect(`/signin?${qs.toString()}`);
     }
     throw error; // re-throw NEXT_REDIRECT
   }

@@ -14,7 +14,8 @@
     "db:studio": "dotenv -e .env.local -- prisma studio",
     "db:seed": "dotenv -e .env.local -- tsx prisma/seed.ts",
     "verify:phase1": "dotenv -e .env.local -- tsx scripts/verify-phase1.ts",
-    "verify:phase2": "dotenv -e .env.local -- tsx scripts/verify-phase2.ts"
+    "verify:phase2": "dotenv -e .env.local -- tsx scripts/verify-phase2.ts",
+    "verify:phase3": "dotenv -e .env.local -- tsx scripts/verify-phase3.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

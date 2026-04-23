@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { CopyLinkButton } from "@/components/copy-link-button";
+import { becomeBarberAction } from "./barber/actions";
 
 export default async function Home() {
   const session = await auth();
@@ -37,6 +38,7 @@ export default async function Home() {
     where: { id: session.user.id },
     include: {
       sponsor: { select: { name: true, referralCode: true } },
+      barberProfile: { select: { slug: true } },
       _count: { select: { sponsees: true } },
     },
   });
@@ -94,9 +96,37 @@ export default async function Home() {
           </div>
         </div>
 
-        <p className="text-xs text-zinc-500">
-          Phase 1 scaffold — more routes coming in later phases (booking, network tree, dashboards).
-        </p>
+        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 mb-4">
+          <div className="text-xs uppercase text-zinc-500 mb-2">Barber</div>
+          {user.barberProfile ? (
+            <div className="space-y-1">
+              <Link
+                href="/barber"
+                className="inline-block text-sm underline text-zinc-900 dark:text-zinc-100"
+              >
+                Open barber dashboard →
+              </Link>
+              <div className="text-xs text-zinc-500">
+                Public booking link:{" "}
+                <Link href={`/book/${user.barberProfile.slug}`} className="underline">
+                  /book/{user.barberProfile.slug}
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <form action={becomeBarberAction}>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
+                Offer services and accept bookings through the platform.
+              </p>
+              <button
+                type="submit"
+                className="text-sm px-3 py-1.5 rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:opacity-90 transition"
+              >
+                Become a barber
+              </button>
+            </form>
+          )}
+        </div>
       </div>
     </main>
   );
