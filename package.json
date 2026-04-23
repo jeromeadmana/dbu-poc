@@ -19,7 +19,9 @@
     "verify:phase4": "dotenv -e .env.local -- tsx scripts/verify-phase4.ts",
     "verify:phase5": "dotenv -e .env.local -- tsx scripts/verify-phase5.ts",
     "diag:bookings": "dotenv -e .env.local -- tsx scripts/diag-bookings.ts",
-    "make:admin": "dotenv -e .env.local -- tsx scripts/make-admin.ts"
+    "make:admin": "dotenv -e .env.local -- tsx scripts/make-admin.ts",
+    "seed:courses": "dotenv -e .env.local -- tsx scripts/seed-courses.ts",
+    "seed:demo": "dotenv -e .env.local -- tsx scripts/seed-demo.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

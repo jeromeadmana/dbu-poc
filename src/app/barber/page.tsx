@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { CopyLinkButton } from "@/components/copy-link-button";
+import { CapacityMeter } from "@/components/capacity-meter";
 import { format } from "date-fns";
 import { startMembershipAction } from "./actions";
+import { getBarberStats } from "@/lib/barber-stats";
 
 export default async function BarberDashboard() {
   const session = await auth();
@@ -44,7 +46,7 @@ export default async function BarberDashboard() {
   const endOfToday = new Date(now);
   endOfToday.setHours(23, 59, 59, 999);
 
-  const [todayBookings, upcomingBookings] = await Promise.all([
+  const [todayBookings, upcomingBookings, stats] = await Promise.all([
     db.booking.findMany({
       where: {
         barberId: profile.userId,
@@ -64,6 +66,7 @@ export default async function BarberDashboard() {
       include: { client: { select: { name: true, email: true } }, service: true },
       orderBy: { startAt: "asc" },
     }),
+    getBarberStats(profile.userId, profile.capacityTargetHrs),
   ]);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -81,6 +84,35 @@ export default async function BarberDashboard() {
             </h1>
           </div>
         </div>
+
+        {/* KPI grid */}
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+          <Kpi label="Today" value={stats.today.count.toString()} sub={`$${(stats.today.revenueCents / 100).toFixed(2)}`} />
+          <Kpi label="This week (7d)" value={stats.week.count.toString()} sub={`$${(stats.week.revenueCents / 100).toFixed(2)}`} />
+          <Kpi label="Upcoming" value={stats.upcoming.count.toString()} sub="confirmed" />
+          <Kpi
+            label="Commissions"
+            value={`$${((stats.commissions.pending.sumCents + stats.commissions.approved.sumCents) / 100).toFixed(2)}`}
+            sub={`${stats.commissions.pending.count} pending · ${stats.commissions.approved.count} approved`}
+          />
+        </section>
+
+        {/* Capacity meter */}
+        <section className="mb-6 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm uppercase text-zinc-500">Weekly capacity</h2>
+            <Link href="/courses" className="text-xs underline text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+              Courses →
+            </Link>
+          </div>
+          <CapacityMeter
+            pct={stats.capacity.pct}
+            unlocked={stats.capacity.unlocked}
+            bookedMin={stats.capacity.bookedMin}
+            targetMin={stats.capacity.targetMin}
+            unlockThreshold={stats.capacity.unlockThreshold}
+          />
+        </section>
 
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 mb-6">
           <div className="flex items-center justify-between mb-1">
@@ -175,6 +207,16 @@ export default async function BarberDashboard() {
         </section>
       </div>
     </main>
+  );
+}
+
+function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
+      <div className="text-xs uppercase text-zinc-500 mb-1">{label}</div>
+      <div className="text-2xl font-semibold">{value}</div>
+      {sub && <div className="text-xs text-zinc-500 mt-1">{sub}</div>}
+    </div>
   );
 }
 
